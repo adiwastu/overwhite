@@ -24,21 +24,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Item,
-  ItemMedia,
-} from "@/components/ui/item"
 import { Badge } from "@/components/ui/badge"
 import { DownloadCard } from "@/components/download-card"
+import { HistoryCard } from "@/components/history-card" // Import the new component
 
 export default function Page() {
   return (
@@ -108,35 +96,11 @@ export default function Page() {
               <CardFooter className="flex justify-end">
                 <Button>Save</Button>
               </CardFooter>
-</Card>
+            </Card>
           </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>History</CardTitle>
-                <CardDescription>See previously downloaded contents.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <Table>
-                <TableCaption>A list of your recent invoices.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[100px]">Invoice</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">INV001</TableCell>
-                    <TableCell>Paid</TableCell>
-                    <TableCell>Credit Card</TableCell>
-                    <TableCell className="text-right">$250.00</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          
+          {/* Use the new HistoryCard component */}
+          <HistoryCard />
         </div>
       </SidebarInset>
     </SidebarProvider>
