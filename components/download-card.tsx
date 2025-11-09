@@ -19,6 +19,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useRef, useState } from "react";
 
 export function DownloadCard() {
@@ -98,53 +106,70 @@ export function DownloadCard() {
   };
 
   return (
-    <div className="space-y-6">
-      <FieldGroup>
-        <Field>
-          <Input 
-            ref={inputRef}
-            id="links" 
-            autoComplete="off" 
-            placeholder="Paste your download links here..." 
-          />
-        </Field>
-        <Field orientation="responsive" className="justify-end">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Downloading..." : "Request"}
+    <Card>
+      <CardHeader>
+        <CardTitle>Download</CardTitle>
+        <CardDescription>Paste your links here.</CardDescription>
+        <CardAction>
+          <div className="flex w-full flex-wrap gap-2">
+            <Badge variant="default">Freepik</Badge>
+            <Badge variant="default">Envato</Badge>
+            <Badge variant="default">Unsplash</Badge>
+            <Badge variant="outline">Flicker</Badge>
+            <Badge variant="outline">Shutterstock</Badge>
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          <FieldGroup>
+            <Field>
+              <Input 
+                ref={inputRef}
+                id="links" 
+                autoComplete="off" 
+                placeholder="Paste your download links here..." 
+              />
+            </Field>
+            <Field orientation="responsive" className="justify-end">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Downloading..." : "Request"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Download Request</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action will use 1 credit from your account. 
+                      Each download costs real money that you've purchased. 
+                      Are you sure you want to proceed with this request?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleConfirmRequest}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Downloading..." : "Yes, Use My Credit"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button 
+                variant="outline" 
+                type="button" 
+                onClick={handleClear}
+                disabled={isLoading}
+              >
+                Clear all
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Download Request</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action will use 1 credit from your account. 
-                  Each download costs real money that you've purchased. 
-                  Are you sure you want to proceed with this request?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleConfirmRequest}
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Downloading..." : "Yes, Use My Credit"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button 
-            variant="outline" 
-            type="button" 
-            onClick={handleClear}
-            disabled={isLoading}
-          >
-            Clear all
-          </Button>
-        </Field>
-      </FieldGroup>
-    </div>
+            </Field>
+          </FieldGroup>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
