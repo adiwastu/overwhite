@@ -76,7 +76,7 @@ export default function Page() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="hidden">
               <CardHeader>
                 <CardTitle>Image Preview</CardTitle>
                 <CardDescription>Card Description</CardDescription>
@@ -99,7 +99,6 @@ export default function Page() {
             </Card>
           </div>
           
-          {/* Use the new HistoryCard component */}
           <HistoryCard />
         </div>
       </SidebarInset>

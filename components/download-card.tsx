@@ -81,7 +81,7 @@ export function DownloadCard() {
       // You can now do something with the download URLs
       // For example, download them automatically or show to user
       downloadUrls.forEach(url => {
-        window.open(url, '_blank');
+        // window.open(url, '_blank');
       });
 
     } catch (error) {
