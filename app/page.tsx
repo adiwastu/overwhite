@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar"
 import { DownloadCard } from "@/components/download-card"
 import { HistoryCard } from "@/components/history-card"
+import { Toaster } from "@/components/ui/sonner"
 
 export default function Page() {
   return (
@@ -50,6 +51,7 @@ export default function Page() {
           </div>
           <HistoryCard />
         </div>
+        <Toaster />
       </SidebarInset>
     </SidebarProvider>
   )

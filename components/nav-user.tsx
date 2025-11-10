@@ -1,3 +1,4 @@
+// components/nav-user.tsx
 "use client"
 
 import {
@@ -8,7 +9,6 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
-
 import {
   Avatar,
   AvatarFallback,
@@ -29,17 +29,103 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import PocketBase from "pocketbase"
+import { toast } from "sonner"
+import { useState, useEffect } from "react"
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar: string
-  }
-}) {
+export function NavUser() {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userRecord, setUserRecord] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL)
+    setIsLoggedIn(pb.authStore.isValid)
+    setUserRecord(pb.authStore.record)
+    setIsLoading(false)
+  }, [])
+
+  const handleLogout = () => {
+    const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL)
+    pb.authStore.clear()
+    toast.success('Logged out successfully')
+    setIsLoggedIn(false)
+    setUserRecord(null)
+    router.refresh()
+  }
+
+  const handleLogin = () => {
+    router.push('/login')
+  }
+
+  const handleSignup = () => {
+    router.push('/signup')
+  }
+
+  // Get initials for avatar fallback
+  const getInitials = (): string => {
+    if (userRecord?.name) {
+      return userRecord.name
+        .split(' ')
+        .map((part: string) => part[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    }
+    return userRecord?.email?.slice(0, 2).toUpperCase() || 'US'
+  }
+
+  // Show loading state or nothing during SSR
+  if (isLoading) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <div className="flex gap-2 p-1">
+            <div className="h-8 flex-1 animate-pulse rounded bg-gray-200"></div>
+            <div className="h-8 flex-1 animate-pulse rounded bg-gray-200"></div>
+          </div>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
+
+  // Get user data from PocketBase record
+  const user = {
+    name: userRecord?.name || userRecord?.username || userRecord?.email || 'User',
+    email: userRecord?.email || '',
+    avatar: userRecord?.avatar || '',
+  }
+
+  // If not logged in, show login/signup buttons
+  if (!isLoggedIn) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <div className="flex gap-2 p-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLogin} 
+              className="flex-1 text-xs"
+            >
+              Login
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={handleSignup} 
+              className="flex-1 text-xs"
+            >
+              Sign Up
+            </Button>
+          </div>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
 
   return (
     <SidebarMenu>
@@ -52,7 +138,9 @@ export function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {getInitials()}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -71,7 +159,9 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {getInitials()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -86,23 +176,8 @@ export function NavUser({
                 Upgrade to Pro
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            {/* <DropdownMenuSeparator /> */}
-            {/* <DropdownMenuGroup> */}
-              {/* <DropdownMenuItem>
-                <BadgeCheck />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
-              </DropdownMenuItem>
-            </DropdownMenuGroup> */}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>
