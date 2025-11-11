@@ -276,11 +276,24 @@ export function HistoryCard() {
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(item.created)}
                   </TableCell>
-                  <TableCell>
-                    <div className="w-10 h-10 rounded border flex items-center justify-center bg-muted">
-                      {getFileIcon(item.file_type)}
+
+                    <TableCell>
+                    <div className="w-10 h-10 rounded border flex items-center justify-center bg-muted overflow-hidden">
+                        {['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(item.file_type?.toLowerCase()) ? (
+                        <img 
+                            src={item.download_url} 
+                            alt={item.file_name}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                            // Fallback to icon if image fails to load
+                            e.currentTarget.style.display = 'none';
+                            }}
+                        />
+                        ) : (
+                        <File className="h-4 w-4" />
+                        )}
                     </div>
-                  </TableCell>
+                    </TableCell>
                   <TableCell className="font-medium">
                     {item.file_name}
                   </TableCell>
