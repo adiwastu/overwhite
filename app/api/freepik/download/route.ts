@@ -1,3 +1,4 @@
+// app\api\freepik\download\route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 // Define response types

@@ -55,7 +55,11 @@ interface DownloadItem {
   }
 }
 
-export function HistoryCard() {
+interface HistoryCardProps {
+  refreshTrigger?: number;
+}
+
+export function HistoryCard({ refreshTrigger = 0 }: HistoryCardProps) {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState<string | null>(null)
@@ -86,6 +90,31 @@ export function HistoryCard() {
 
     fetchDownloads()
   }, [])
+
+  useEffect(() => {
+    const fetchDownloads = async () => {
+      try {
+        const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL)
+        
+        if (pb.authStore.isValid) {
+          const records = await pb.collection('downloads').getList(1, 50, {
+            filter: `user = "${pb.authStore.record?.id}"`,
+            sort: '-created',
+            expand: 'user'
+          })
+          
+          setDownloads(records.items as DownloadItem[])
+        }
+      } catch (error) {
+        console.error('Error fetching downloads:', error)
+        toast.error("Failed to load download history")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDownloads()
+  }, [refreshTrigger])
 
   const extractResourceId = (url: string): string | null => {
     const match = url.match(/_(\d+)\.htm/)

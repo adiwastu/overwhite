@@ -1,4 +1,7 @@
 // app/page.tsx
+
+"use client";
+
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -17,8 +20,16 @@ import {
 import { DownloadCard } from "@/components/download-card"
 import { HistoryCard } from "@/components/history-card"
 import { Toaster } from "@/components/ui/sonner"
+import { useState } from "react"
 
 export default function Page() {
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleDownloadComplete = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
+
+
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
@@ -47,9 +58,9 @@ export default function Page() {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="grid auto-rows-min gap-4">
-            <DownloadCard />
+            <DownloadCard onDownloadComplete={handleDownloadComplete}/>
           </div>
-          <HistoryCard />
+          <HistoryCard refreshTrigger={refreshTrigger}/>
         </div>
         <Toaster />
       </SidebarInset>

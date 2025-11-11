@@ -28,20 +28,52 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useRef, useState } from "react";
+import PocketBase from 'pocketbase';
+import { toast } from 'sonner';
 
-export function DownloadCard() {
+interface DownloadCardProps {
+  onDownloadComplete?: () => void;
+}
+
+export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const extractResourceId = (url: string): string | null => {
-    // Match the pattern: _numbers_.htm
     const match = url.match(/_(\d+)\.htm/);
     return match ? match[1] : null;
   };
 
+  const createDownloadRecord = async (downloadData: {
+    original_url: string;
+    download_url: string;
+    file_type: string;
+    file_name: string;
+  }) => {
+    try {
+      const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+      
+      if (!pb.authStore.isValid) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const record = await pb.collection('downloads').create({
+        user: pb.authStore.record?.id,
+        ...downloadData,
+        download_count: 0
+      });
+
+      return record;
+    } catch (error) {
+      console.error('Error creating download record:', error);
+      // Don't throw here - we don't want to break the download flow if DB save fails
+    }
+  };
+
   const handleConfirmRequest = async () => {
     if (!inputRef.current?.value) {
-      console.error("No link provided");
+      toast.error("Please enter a download link");
       return;
     }
 
@@ -49,7 +81,7 @@ export function DownloadCard() {
     const resourceId = extractResourceId(link);
 
     if (!resourceId) {
-      console.error("Could not extract resource ID from link");
+      toast.error("Invalid link format. Could not extract resource ID.");
       return;
     }
 
@@ -58,7 +90,7 @@ export function DownloadCard() {
 
     try {
       const formats = ["eps", "png", "jpg", "svg"];
-      const downloadUrls: string[] = [];
+      const successfulDownloads: { format: string; url: string; filename: string }[] = [];
 
       // Make parallel requests for all formats
       const requests = formats.map(async (format) => {
@@ -70,7 +102,12 @@ export function DownloadCard() {
           if (response.ok) {
             const data = await response.json();
             if (data.url) {
-              downloadUrls.push(data.url);
+              const filename = `freepik-${resourceId}.${format}`;
+              successfulDownloads.push({
+                format,
+                url: data.url,
+                filename
+              });
               console.log(`✅ ${format.toUpperCase()}: ${data.url}`);
             }
           } else {
@@ -83,17 +120,33 @@ export function DownloadCard() {
 
       await Promise.all(requests);
       
-      // Now you have all successful download URLs in downloadUrls array
-      console.log("All successful downloads:", downloadUrls);
-      
-      // You can now do something with the download URLs
-      // For example, download them automatically or show to user
-      downloadUrls.forEach(url => {
-        // window.open(url, '_blank');
+      // Create database records for each successful download
+      const dbPromises = successfulDownloads.map(async (download) => {
+        await createDownloadRecord({
+          original_url: link,
+          download_url: download.url,
+          file_type: download.format,
+          file_name: download.filename
+        });
       });
+
+      await Promise.all(dbPromises);
+
+      // Show success message
+      if (successfulDownloads.length > 0) {
+        toast.success(`Successfully processed ${successfulDownloads.length} file(s)`);
+        
+        // 🔥 Call the refresh callback to update HistoryCard
+        if (onDownloadComplete) {
+          onDownloadComplete();
+        }
+      } else {
+        toast.error("No files were successfully processed");
+      }
 
     } catch (error) {
       console.error("Error in download process:", error);
+      toast.error("Download process failed");
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +188,7 @@ export function DownloadCard() {
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Downloading..." : "Request"}
+                    {isLoading ? "Processing..." : "Request"}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -153,7 +206,7 @@ export function DownloadCard() {
                       onClick={handleConfirmRequest}
                       disabled={isLoading}
                     >
-                      {isLoading ? "Downloading..." : "Yes, Use My Credit"}
+                      {isLoading ? "Processing..." : "Yes, Use My Credit"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
