@@ -1,3 +1,4 @@
+// components\app-sidebar.tsx
 "use client"
 import * as React from "react"
 import {
@@ -56,7 +57,11 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  refreshTrigger?: number;
+}
+
+export function AppSidebar({ refreshTrigger, ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -64,7 +69,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {/* <NavMain items={data.navMain} /> */}
-        <NavUsage />
+        <NavUsage refreshTrigger={refreshTrigger}/>
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

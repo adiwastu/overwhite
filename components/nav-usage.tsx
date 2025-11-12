@@ -14,7 +14,11 @@ import { Circle } from "lucide-react"
 import { useState, useEffect } from "react"
 import PocketBase from "pocketbase"
 
-export function NavUsage() {
+interface NavUsageProps {
+  refreshTrigger?: number;
+}
+
+export function NavUsage({ refreshTrigger = 0 }: NavUsageProps) {
   const [usageData, setUsageData] = useState({
     used: 0,
     total: 100,
@@ -32,7 +36,8 @@ export function NavUsage() {
         if (pb.authStore.isValid && pb.authStore.record) {
           // We need to fetch the full user record with the specific fields
           const user = await pb.collection('users').getOne(pb.authStore.record.id, {
-            fields: 'api_calls_used,api_credit_limit'
+            fields: 'api_calls_used,api_credit_limit',
+            requestKey: null
           })
           
           // Get usage data from user record
@@ -56,7 +61,7 @@ export function NavUsage() {
     }
 
     fetchUsageData()
-  }, [])
+  }, [refreshTrigger])
 
   const getVariant = () => {
     if (usageData.percentage >= 90) return "destructive"

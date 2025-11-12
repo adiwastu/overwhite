@@ -57,9 +57,10 @@ interface DownloadItem {
 
 interface HistoryCardProps {
   refreshTrigger?: number;
+  onDownloadComplete?: () => void;
 }
 
-export function HistoryCard({ refreshTrigger = 0 }: HistoryCardProps) {
+export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryCardProps) {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState<string | null>(null)
@@ -75,7 +76,8 @@ export function HistoryCard({ refreshTrigger = 0 }: HistoryCardProps) {
           const records = await pb.collection('downloads').getList(1, 50, {
             filter: `user = "${pb.authStore.record?.id}"`,
             sort: '-created',
-            expand: 'user'
+            expand: 'user',
+            requestKey: null
           })
           
           setDownloads(records.items as DownloadItem[])
@@ -91,147 +93,192 @@ export function HistoryCard({ refreshTrigger = 0 }: HistoryCardProps) {
     fetchDownloads()
   }, [])
 
-  useEffect(() => {
-    const fetchDownloads = async () => {
-      try {
-        const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL)
-        
-        if (pb.authStore.isValid) {
-          const records = await pb.collection('downloads').getList(1, 50, {
-            filter: `user = "${pb.authStore.record?.id}"`,
-            sort: '-created',
-            expand: 'user'
-          })
-          
-          setDownloads(records.items as DownloadItem[])
-        }
-      } catch (error) {
-        console.error('Error fetching downloads:', error)
-        toast.error("Failed to load download history")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchDownloads()
-  }, [refreshTrigger])
+  
 
   const extractResourceId = (url: string): string | null => {
     const match = url.match(/_(\d+)\.htm/)
     return match ? match[1] : null
   }
 
-  const handleDownload = async (downloadUrl: string, filename: string, itemId: string) => {
+  // components/history-card.tsx - Updated handleDownload function
+
+    const handleDownload = async (downloadUrl: string, filename: string, itemId: string) => {
     try {
-      setIsDownloading(itemId)
-      
-      const response = await fetch(downloadUrl, { 
+        setIsDownloading(itemId);
+        
+        const response = await fetch(downloadUrl, { 
         method: 'HEAD',
         cache: 'no-cache'
-      })
-      
-      if (!response.ok) {
-        if (response.status === 404 || response.status === 403) {
-          // Find the item to get original_url for re-download
-          const item = downloads.find(d => d.id === itemId)
-          if (item) {
-            setSelectedItem(item)
-            setAlertOpen(true)
-          } else {
-            toast.error('Download link has expired')
-          }
-          return
-        } else {
-          toast.error(`Download failed with status: ${response.status}`)
-          return
-        }
-      }
-
-      const contentLength = response.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) === 0) {
-        toast.error('File is empty or unavailable.')
-        return
-      }
-
-      // Trigger download
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = filename
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      setTimeout(() => {
-        document.body.removeChild(link)
-      }, 100)
-
-      toast.success(`Download started: ${filename}`)
-
-    } catch (error) {
-      console.error('Download error:', error)
-      toast.error('Download failed. Please check your connection and try again.')
-    } finally {
-      setIsDownloading(null)
-    }
-  }
-
-  const handleRedownload = async () => {
-    if (!selectedItem) return
-
-    setIsDownloading(selectedItem.id)
-    setAlertOpen(false)
-
-    try {
-      const resourceId = extractResourceId(selectedItem.original_url)
-      
-      if (!resourceId) {
-        toast.error('Could not extract resource ID from link')
-        return
-      }
-
-      // Call your API to get a fresh download link
-      const response = await fetch(
-        `/api/freepik/download?resourceId=${resourceId}&format=${selectedItem.file_type}`
-      )
-
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}`)
-      }
-
-      const data = await response.json()
-      
-      if (data.url) {
-        // Trigger download with the new URL
-        const link = document.createElement('a')
-        link.href = data.url
-        link.download = selectedItem.file_name
-        link.style.display = 'none'
-        document.body.appendChild(link)
-        link.click()
-        setTimeout(() => {
-          document.body.removeChild(link)
-        }, 100)
-
-        toast.success(`Download started: ${selectedItem.file_name}`)
+        });
         
-        // Optional: Update the local state with the new download_url
-        // You might want to refetch the downloads or update the specific item
-        setDownloads(prev => prev.map(item => 
-          item.id === selectedItem.id 
-            ? { ...item, download_url: data.url, updated: new Date().toISOString() }
-            : item
-        ))
-      } else {
-        toast.error('No download URL received from API')
-      }
+        if (!response.ok) {
+        if (response.status === 404 || response.status === 403) {
+            // Find the item to get original_url for re-download
+            const item = downloads.find(d => d.id === itemId);
+            if (item) {
+            setSelectedItem(item);
+            setAlertOpen(true);
+            } else {
+            toast.error('Download link has expired');
+            }
+            return;
+        } else {
+            toast.error(`Download failed with status: ${response.status}`);
+            return;
+        }
+        }
+
+        const contentLength = response.headers.get('content-length');
+        if (contentLength && parseInt(contentLength) === 0) {
+        toast.error('File is empty or unavailable.');
+        return;
+        }
+
+        // If we get here, the link is valid (non-4xx) - increment download count
+        await incrementDownloadCount(itemId);
+
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+        document.body.removeChild(link);
+        }, 100);
+
+        toast.success(`Download started: ${filename}`);
 
     } catch (error) {
-      console.error('Redownload error:', error)
-      toast.error('Failed to get fresh download link')
+        console.error('Download error:', error);
+        toast.error('Download failed. Please check your connection and try again.');
     } finally {
-      setIsDownloading(null)
-      setSelectedItem(null)
+        setIsDownloading(null);
     }
-  }
+    };
+
+    const incrementDownloadCount = async (itemId: string) => {
+    try {
+        const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+        
+        // Get the current record first to know the current count
+        const currentRecord = await pb.collection('downloads').getOne(itemId);
+        const currentCount = currentRecord.download_count || 0;
+        
+        // Update the record with incremented count
+        await pb.collection('downloads').update(itemId, {
+        download_count: currentCount + 1
+        });
+        
+        // Update local state to reflect the change immediately
+        setDownloads(prev => prev.map(item => 
+        item.id === itemId 
+            ? { ...item, download_count: currentCount + 1 }
+            : item
+        ));
+        
+    } catch (error) {
+        console.error('Error incrementing download count:', error);
+        // Don't show error to user - the download should still proceed
+    }
+    };
+
+    const incrementApiCalls = async (incrementBy: number) => {
+        try {
+            const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+            
+            if (!pb.authStore.isValid || !pb.authStore.record) {
+            console.error('User not authenticated');
+            return;
+            }
+
+            // Get current user to know the current count
+            const currentUser = await pb.collection('users').getOne(pb.authStore.record.id);
+            const currentCalls = currentUser.api_calls_used || 0;
+            
+            // Update the user's API call count
+            await pb.collection('users').update(pb.authStore.record.id, {
+            api_calls_used: currentCalls + incrementBy
+            });
+            
+            console.log(`Incremented API calls by ${incrementBy}. New total: ${currentCalls + incrementBy}`);
+            
+        } catch (error) {
+            console.error('Error incrementing API calls:', error);
+            // Don't throw - we don't want to break the download flow
+        }
+        };
+
+        const handleRedownload = async () => {
+            if (!selectedItem) return;
+
+            setIsDownloading(selectedItem.id);
+            setAlertOpen(false);
+
+            try {
+                const resourceId = extractResourceId(selectedItem.original_url);
+                
+                if (!resourceId) {
+                toast.error('Could not extract resource ID from link');
+                return;
+                }
+
+                // Call your API to get a fresh download link
+                const response = await fetch(
+                `/api/freepik/download?resourceId=${resourceId}&format=${selectedItem.file_type}`
+                );
+
+                if (!response.ok) {
+                throw new Error(`API returned ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.url) {
+                // 🔥 INCREMENT API CALLS USED - this re-download uses 1 credit
+                await incrementApiCalls(1);
+                
+                // Increment download count for the re-download
+                await incrementDownloadCount(selectedItem.id);
+                
+                // Trigger download with the new URL
+                const link = document.createElement('a');
+                link.href = data.url;
+                link.download = selectedItem.file_name;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                }, 100);
+
+                toast.success(`Download started: ${selectedItem.file_name}`);
+                
+                // Update the local state with the new download_url
+                setDownloads(prev => prev.map(item => 
+                    item.id === selectedItem.id 
+                    ? { ...item, download_url: data.url, updated: new Date().toISOString() }
+                    : item
+                ));
+
+                if (onDownloadComplete) {
+                    onDownloadComplete();
+                }
+
+                
+                } else {
+                toast.error('No download URL received from API');
+                }
+
+            } catch (error) {
+                console.error('Redownload error:', error);
+                toast.error('Failed to get fresh download link');
+            } finally {
+                setIsDownloading(null);
+                setSelectedItem(null);
+            }
+            };
 
   const getFileIcon = (filetype: string) => {
     const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']

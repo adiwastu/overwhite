@@ -71,86 +71,117 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
     }
   };
 
-  const handleConfirmRequest = async () => {
+  const incrementApiCalls = async (incrementBy: number) => {
+    try {
+        const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+        
+        if (!pb.authStore.isValid || !pb.authStore.record) {
+        console.error('User not authenticated');
+        return;
+        }
+
+        // Get current user to know the current count
+        const currentUser = await pb.collection('users').getOne(pb.authStore.record.id);
+        const currentCalls = currentUser.api_calls_used || 0;
+        
+        // Update the user's API call count
+        await pb.collection('users').update(pb.authStore.record.id, {
+        api_calls_used: currentCalls + incrementBy
+        });
+        
+        console.log(`Incremented API calls by ${incrementBy}. New total: ${currentCalls + incrementBy}`);
+        
+    } catch (error) {
+        console.error('Error incrementing API calls:', error);
+        // Don't throw - we don't want to break the download flow
+    }
+    };
+
+    const handleConfirmRequest = async () => {
     if (!inputRef.current?.value) {
-      toast.error("Please enter a download link");
-      return;
+        toast.error("Please enter a download link");
+        return;
     }
 
     const link = inputRef.current.value;
     const resourceId = extractResourceId(link);
 
     if (!resourceId) {
-      toast.error("Invalid link format. Could not extract resource ID.");
-      return;
+        toast.error("Invalid link format. Could not extract resource ID.");
+        return;
     }
 
     setIsLoading(true);
     console.log("API request initiated for resource:", resourceId);
 
     try {
-      const formats = ["eps", "png", "jpg", "svg"];
-      const successfulDownloads: { format: string; url: string; filename: string }[] = [];
+        const formats = ["eps", "png", "jpg", "svg"];
+        const successfulDownloads: { format: string; url: string; filename: string }[] = [];
 
-      // Make parallel requests for all formats
-      const requests = formats.map(async (format) => {
+        // Make parallel requests for all formats
+        const requests = formats.map(async (format) => {
         try {
-          const response = await fetch(
+            const response = await fetch(
             `/api/freepik/download?resourceId=${resourceId}&format=${format}`
-          );
-          
-          if (response.ok) {
+            );
+            
+            if (response.ok) {
             const data = await response.json();
             if (data.url) {
-              const filename = `freepik-${resourceId}.${format}`;
-              successfulDownloads.push({
+                const filename = `freepik-${resourceId}.${format}`;
+                successfulDownloads.push({
                 format,
                 url: data.url,
                 filename
-              });
-              console.log(`✅ ${format.toUpperCase()}: ${data.url}`);
+                });
+                console.log(`✅ ${format.toUpperCase()}: ${data.url}`);
             }
-          } else {
+            } else {
             console.log(`❌ ${format.toUpperCase()}: ${response.status} - ${response.statusText}`);
-          }
+            }
         } catch (error) {
-          console.error(`Error fetching ${format}:`, error);
+            console.error(`Error fetching ${format}:`, error);
         }
-      });
-
-      await Promise.all(requests);
-      
-      // Create database records for each successful download
-      const dbPromises = successfulDownloads.map(async (download) => {
-        await createDownloadRecord({
-          original_url: link,
-          download_url: download.url,
-          file_type: download.format,
-          file_name: download.filename
         });
-      });
 
-      await Promise.all(dbPromises);
+        await Promise.all(requests);
+        
+        // Create database records for each successful download
+        const dbPromises = successfulDownloads.map(async (download) => {
+        await createDownloadRecord({
+            original_url: link,
+            download_url: download.url,
+            file_type: download.format,
+            file_name: download.filename
+        });
+        });
 
-      // Show success message
-      if (successfulDownloads.length > 0) {
+        await Promise.all(dbPromises);
+
+        // 🔥 INCREMENT API CALLS USED - one per successful format
+        if (successfulDownloads.length > 0) {
+        await incrementApiCalls(successfulDownloads.length);
+        }
+
+        // Show success message
+        if (successfulDownloads.length > 0) {
         toast.success(`Successfully processed ${successfulDownloads.length} file(s)`);
         
-        // 🔥 Call the refresh callback to update HistoryCard
+        // Call the refresh callback to update HistoryCard
         if (onDownloadComplete) {
-          onDownloadComplete();
+            onDownloadComplete();
         }
-      } else {
+        } else {
         toast.error("No files were successfully processed");
-      }
+        }
 
     } catch (error) {
-      console.error("Error in download process:", error);
-      toast.error("Download process failed");
+        console.error("Error in download process:", error);
+        toast.error("Download process failed");
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  };
+    };
 
   const handleClear = () => {
     if (inputRef.current) {
