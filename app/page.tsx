@@ -25,6 +25,10 @@ import { useState } from "react"
 export default function Page() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const triggerRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   const handleDownloadComplete = () => {
     setRefreshTrigger(prev => prev + 1)
   }
