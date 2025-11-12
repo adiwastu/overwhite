@@ -78,3 +78,4 @@ export function AppSidebar({ refreshTrigger, ...props }: AppSidebarProps) {
     </Sidebar>
   )
 }
+
