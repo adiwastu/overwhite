@@ -1,5 +1,4 @@
 // app/page.tsx
-
 "use client";
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -20,23 +19,47 @@ import {
 import { DownloadCard } from "@/components/download-card"
 import { HistoryCard } from "@/components/history-card"
 import { Toaster } from "@/components/ui/sonner"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 export default function Page() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  const triggerRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
+  const [isSidebarRefreshing, setIsSidebarRefreshing] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDownloadComplete = () => {
-    setRefreshTrigger(prev => prev + 1)
+    // Immediate refresh for HistoryCard
+    setRefreshTrigger(prev => prev + 1);
+    
+    // Start refreshing state for AppSidebar
+    setIsSidebarRefreshing(true);
+    
+    // Delayed refresh for AppSidebar (3 seconds delay)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      setSidebarRefreshTrigger(prev => prev + 1);
+      setIsSidebarRefreshing(false);
+    }, 3000);
   }
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <AppSidebar/>
+      <AppSidebar 
+        refreshTrigger={sidebarRefreshTrigger} 
+        isRefreshing={isSidebarRefreshing}
+      />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">

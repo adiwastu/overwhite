@@ -71,6 +71,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
     const fetchDownloads = async () => {
       try {
         const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL)
+        pb.autoCancellation(false)
         
         if (pb.authStore.isValid) {
           const records = await pb.collection('downloads').getList(1, 50, {
@@ -161,6 +162,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
     const incrementDownloadCount = async (itemId: string) => {
     try {
         const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+        pb.autoCancellation(false)
         
         // Get the current record first to know the current count
         const currentRecord = await pb.collection('downloads').getOne(itemId);
@@ -187,6 +189,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
     const incrementApiCalls = async (incrementBy: number) => {
         try {
             const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+            pb.autoCancellation(false)
             
             if (!pb.authStore.isValid || !pb.authStore.record) {
             console.error('User not authenticated');

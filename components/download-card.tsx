@@ -52,6 +52,7 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
   }) => {
     try {
       const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+      pb.autoCancellation(false)
       
       if (!pb.authStore.isValid) {
         console.error('User not authenticated');
@@ -74,6 +75,7 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
   const incrementApiCalls = async (incrementBy: number) => {
     try {
         const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+        pb.autoCancellation(false)
         
         if (!pb.authStore.isValid || !pb.authStore.record) {
         console.error('User not authenticated');
