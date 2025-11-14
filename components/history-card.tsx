@@ -71,7 +71,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
     const fetchDownloads = async () => {
       try {
         const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL)
-        pb.autoCancellation(false)
+        // pb.autoCancellation(false)
         
         if (pb.authStore.isValid) {
           const records = await pb.collection('downloads').getList(1, 50, {
@@ -347,7 +347,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
             <TableCaption>
               {downloads.length === 0 
                 ? "No download history found." 
-                : "Your recent download history."
+                : null
               }
             </TableCaption>
             <TableHeader>
@@ -400,14 +400,12 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
                       variant="default" 
                       size="sm"
                       onClick={() => handleDownload(item.download_url, item.file_name, item.id)}
-                      disabled={isDownloading === item.id}
-                    >
+                      disabled={isDownloading === item.id}>
                       {isDownloading === item.id ? (
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Download className="h-4 w-4 mr-1" />
+                        <Download className="h-4 w-4" />
                       )}
-                      {isDownloading === item.id ? 'Downloading...' : 'Save'}
                     </Button>
                   </TableCell>
                 </TableRow>

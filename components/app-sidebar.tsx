@@ -7,7 +7,7 @@ import {
   Command,
 } from "lucide-react"
 
-import KemenfoIcon from "@/public/kemenfo.svg" 
+import { KemenfoIcon } from "./icons/kemenfo-icon"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -25,26 +25,16 @@ import { NavUsage } from "@/components/nav-usage"
 const data = {
   teams: [
     {
-      name: "Hotlanode",
+      name: "Kementerian Stok Foto",
       logo: GalleryVerticalEnd,
       plan: "Premium",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
     },
   ],
   navMain: [
     {
       title: "Playground",
       url: "#",
-      icon: GalleryVerticalEnd, // Using existing icon
+      icon: GalleryVerticalEnd,
       isActive: true,
     },
     {
@@ -70,15 +60,19 @@ export function AppSidebar({ refreshTrigger, ...props }: AppSidebarProps) {
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-      <SidebarContent>
-        {/* <NavMain items={data.navMain} /> */}
+      <SidebarContent className="flex flex-col items-center">
         <NavUsage refreshTrigger={refreshTrigger}/>
+        <div className="flex items-center justify-center p-2 flex-grow flex-col justify-center">
+          <div className="w-36 h-36 flex items-center justify-center">
+            <KemenfoIcon className="text-blue-500" />
+          </div>
+        </div>
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+    
   )
 }
-

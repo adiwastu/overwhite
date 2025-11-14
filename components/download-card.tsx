@@ -4,6 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 import {
   Field,
   FieldGroup,
@@ -199,8 +200,8 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
         <CardAction>
           <div className="flex w-full flex-wrap gap-2">
             <Badge variant="default">Freepik</Badge>
-            <Badge variant="default">Envato</Badge>
-            <Badge variant="default">Unsplash</Badge>
+            <Badge variant="outline">Envato</Badge>
+            <Badge variant="outline">Unsplash</Badge>
             <Badge variant="outline">Flicker</Badge>
             <Badge variant="outline">Shutterstock</Badge>
           </div>
@@ -220,9 +221,14 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
             <Field orientation="responsive" className="justify-end">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Processing..." : "Request"}
-                  </Button>
+                <Button type="submit" disabled={isLoading}>
+                <span className="flex items-center">
+                    {isLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                    <span className="whitespace-nowrap">
+                    {isLoading ? "Requesting..." : "Request"}
+                    </span>
+                </span>
+                </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
