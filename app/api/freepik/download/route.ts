@@ -1,5 +1,5 @@
-// app\api\freepik\download\route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { uploadToR2, getContentType } from '@/lib/r2-upload';
 
 // Define response types
 type SuccessResponse = {
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Step 1: Get temporary Freepik URL
     const apiUrl = `https://api.freepik.com/v1/resources/${resourceId}/download/${format}`;
     
     const response = await fetch(apiUrl, {
@@ -39,8 +40,7 @@ export async function GET(request: NextRequest) {
         'x-freepik-api-key': process.env.FREEPIK_API_KEY,
         'Accept': 'application/json',
       },
-      // Optional: Add timeout
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -70,13 +70,35 @@ export async function GET(request: NextRequest) {
       throw new Error('Invalid response format from Freepik API');
     }
 
-    // Return only the download URL
+    const freepikUrl = data.data[0].url;
+
+    // Step 2: Download the actual file from Freepik
+    console.log(`Downloading file from Freepik: ${freepikUrl}`);
+    const fileResponse = await fetch(freepikUrl);
+    
+    if (!fileResponse.ok) {
+      throw new Error(`Failed to download file from Freepik: ${fileResponse.status}`);
+    }
+
+    // Step 3: Get file as buffer
+    const fileBuffer = await fileResponse.arrayBuffer();
+    const buffer = Buffer.from(fileBuffer);
+
+    // Step 4: Upload to R2
+    const fileName = `freepik-${resourceId}.${format}`;
+    const contentType = getContentType(format);
+    
+    console.log(`Uploading to R2: ${fileName}`);
+    const r2Url = await uploadToR2(buffer, fileName, contentType);
+
+    // Step 5: Return permanent R2 URL
+    console.log(`Successfully uploaded to R2: ${r2Url}`);
     return NextResponse.json<SuccessResponse>({ 
-      url: data.data[0].url 
+      url: r2Url 
     });
     
   } catch (error) {
-    console.error('Freepik download error:', error);
+    console.error('Freepik download and R2 upload error:', error);
     
     if (error instanceof Error) {
       if (error.name === 'TimeoutError' || error.name === 'AbortError') {
@@ -88,7 +110,7 @@ export async function GET(request: NextRequest) {
     }
     
     return NextResponse.json<ErrorResponse>(
-      { error: error instanceof Error ? error.message : 'Failed to fetch download URL' },
+      { error: error instanceof Error ? error.message : 'Failed to process download' },
       { status: 500 }
     );
   }

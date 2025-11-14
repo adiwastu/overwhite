@@ -92,7 +92,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
     }
 
     fetchDownloads()
-  }, [])
+  }, [refreshTrigger])
 
   
 

@@ -6,6 +6,9 @@ import {
   GalleryVerticalEnd,
   Command,
 } from "lucide-react"
+
+import KemenfoIcon from "@/public/kemenfo.svg" 
+
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"

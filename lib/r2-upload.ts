@@ -30,7 +30,7 @@ export async function uploadToR2(
     await r2Client.send(command);
     
     // Return public URL for the uploaded file
-    const publicUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
+    const publicUrl = `${process.env.R2_PUBLIC_URL}/${process.env.R2_BUCKET_NAME}/${fileName}`;
     return publicUrl;
   } catch (error) {
     console.error('R2 upload error:', error);
