@@ -102,7 +102,6 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
   }
 
   // components/history-card.tsx - Updated handleDownload function
-
     const handleDownload = async (downloadUrl: string, filename: string, itemId: string) => {
     try {
         setIsDownloading(itemId);
@@ -138,15 +137,27 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
         // If we get here, the link is valid (non-4xx) - increment download count
         await incrementDownloadCount(itemId);
 
-        // Trigger download
+        // Create a temporary download link using a blob
+        const fileResponse = await fetch(downloadUrl);
+        if (!fileResponse.ok) {
+        throw new Error(`Failed to fetch file for download: ${fileResponse.status}`);
+        }
+        
+        const blob = await fileResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        // Create temporary anchor for download
         const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename;
+        link.href = blobUrl;
+        link.download = filename; // This forces download
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
+        
+        // Clean up
         setTimeout(() => {
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl); // Free up memory
         }, 100);
 
         toast.success(`Download started: ${filename}`);
