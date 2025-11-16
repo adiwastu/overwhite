@@ -404,7 +404,17 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete, onFillDown
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="font-medium">{item.download_count || 1}</span>
+                    <div className="flex justify-center">
+                      {item.download_count === 0 ? (
+                        <Badge variant="secondary" className="bg-green-300">
+                          New
+                        </Badge>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">{item.download_count}</span>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button 

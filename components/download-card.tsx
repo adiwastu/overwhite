@@ -28,9 +28,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useRef, useState, useEffect} from "react";
+import { useRef, useState, useEffect } from "react";
 import PocketBase from 'pocketbase';
 import { toast } from 'sonner';
+
+// Define possible states for the loading process
+type LoadingState = 
+  | 'idle' // Initial state
+  | 'validating' // Checking input
+  | 'parsing' // Parsing resource ID (though very quick, could be shown)
+  | 'fetching-temp-urls' // Fetching from Freepik API
+  | 'generating-permanent-urls' // Processing and uploading to R2
+  | 'saving-records' // Saving to database
+  | 'incrementing-credits' // Updating API call count
+  | 'complete' // Process finished (will be reset quickly)
+  | 'error'; // Error occurred (will be reset quickly)
 
 interface DownloadCardProps {
   onDownloadComplete?: () => void;
@@ -40,7 +52,32 @@ interface DownloadCardProps {
 
 export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: DownloadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState<LoadingState>('idle');
+
+  // Function to get the display text for the button based on the current state
+  const getButtonText = (): string => {
+    switch (loadingState) {
+      case 'validating':
+        return "Validating...";
+      case 'parsing':
+        return "Parsing..."; // Might be too quick to show, see below
+      case 'fetching-temp-urls':
+        return "Creating links...";
+      case 'saving-records':
+        return "Saving Records...";
+      case 'incrementing-credits':
+        return "Incrementing Credits...";
+      case 'complete':
+        return "Complete!";
+      case 'error':
+        return "Error!"; // This state might transition quickly, see handleConfirmRequest
+      default: // 'idle'
+        return "Request";
+    }
+  };
+
+  // Determine if the button should be disabled
+  const isButtonDisabled = loadingState !== 'idle';
 
   useEffect(() => {
     if (inputRef.current && inputValue !== undefined) {
@@ -62,7 +99,7 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
     try {
       const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
       pb.autoCancellation(false)
-      
+
       if (!pb.authStore.isValid) {
         console.error('User not authenticated');
         return;
@@ -85,32 +122,34 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
     try {
         const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
         pb.autoCancellation(false)
-        
+
         if (!pb.authStore.isValid || !pb.authStore.record) {
         console.error('User not authenticated');
         return;
         }
 
-        // Get current user to know the current count
         const currentUser = await pb.collection('users').getOne(pb.authStore.record.id);
         const currentCalls = currentUser.api_calls_used || 0;
-        
-        // Update the user's API call count
+
         await pb.collection('users').update(pb.authStore.record.id, {
         api_calls_used: currentCalls + incrementBy
         });
-        
+
         console.log(`Incremented API calls by ${incrementBy}. New total: ${currentCalls + incrementBy}`);
-        
+
     } catch (error) {
         console.error('Error incrementing API calls:', error);
         // Don't throw - we don't want to break the download flow
     }
-    };
+  };
 
-    const handleConfirmRequest = async () => {
+  const handleConfirmRequest = async () => {
+    // Start the process by setting the first state
+    setLoadingState('validating');
+
     if (!inputRef.current?.value) {
         toast.error("Please enter a download link");
+        setLoadingState('idle'); // Reset state
         return;
     }
 
@@ -119,10 +158,17 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
 
     if (!resourceId) {
         toast.error("Invalid link format. Could not extract resource ID.");
+        setLoadingState('idle'); // Reset state
         return;
     }
 
-    setIsLoading(true);
+    // Parsing step (might be too quick, but shown here for completeness)
+    setLoadingState('parsing');
+    // Parsing happens synchronously, so state might flicker. You could skip this step or add a small delay if desired.
+    // setTimeout(() => setLoadingState('fetching-temp-urls'), 100); // Example of adding a small delay if needed
+
+    // Move to fetching state
+    setLoadingState('fetching-temp-urls');
     console.log("API request initiated for resource:", resourceId);
 
     try {
@@ -132,10 +178,12 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         // Make parallel requests for all formats
         const requests = formats.map(async (format) => {
         try {
+            // Note: The API route itself handles fetching temp URL and generating permanent URL.
+            // So from the client's perspective, these fetches represent the overall "fetching" step.
             const response = await fetch(
             `/api/freepik/download?resourceId=${resourceId}&format=${format}`
             );
-            
+
             if (response.ok) {
             const data = await response.json();
             if (data.url) {
@@ -156,7 +204,10 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         });
 
         await Promise.all(requests);
-        
+
+        // Update state after fetching is done
+        setLoadingState('saving-records');
+
         // Create database records for each successful download
         const dbPromises = successfulDownloads.map(async (download) => {
         await createDownloadRecord({
@@ -169,15 +220,20 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
 
         await Promise.all(dbPromises);
 
+        // Update state after saving records
+        setLoadingState('incrementing-credits');
+
         // 🔥 INCREMENT API CALLS USED - one per successful format
         if (successfulDownloads.length > 0) {
         await incrementApiCalls(successfulDownloads.length);
         }
 
+        // Update state after incrementing credits
+        setLoadingState('complete'); // Show "Complete!" briefly
+
         // Show success message
         if (successfulDownloads.length > 0) {
         toast.success(`Successfully processed ${successfulDownloads.length} file(s)`);
-        
         // Call the refresh callback to update HistoryCard
         if (onDownloadComplete) {
             onDownloadComplete();
@@ -186,15 +242,19 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         toast.error("No files were successfully processed");
         }
 
+        // Reset the button state after a short delay to show "Complete!" or go back to "Request"
+        setTimeout(() => {
+            setLoadingState('idle');
+        }, 1000); // Show "Complete!" for 1 second before resetting
+
     } catch (error) {
         console.error("Error in download process:", error);
         toast.error("Download process failed");
-    } finally {
-        setIsLoading(false);
+        setLoadingState('idle'); // Reset state
     }
-    };
+  };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onInputChange) {
       onInputChange(e.target.value);
     }
@@ -228,51 +288,58 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         <div className="space-y-6">
           <FieldGroup>
             <Field>
-              <Input 
+              <Input
                 ref={inputRef}
-                id="links" 
-                autoComplete="off" 
-                placeholder="Paste your download links here..." 
+                id="links"
+                autoComplete="off"
+                placeholder="Paste your download links here..."
                 onChange={handleInputChange}
+                disabled={isButtonDisabled} // Optionally disable input during process
               />
             </Field>
             <Field orientation="responsive" className="justify-end">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                <Button type="submit" disabled={isLoading}>
-                <span className="flex items-center">
-                    {isLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                    <span className="whitespace-nowrap">
-                    {isLoading ? "Requesting..." : "Request"}
+                  {/* Use isButtonDisabled instead of isLoading */}
+                  <Button type="submit" disabled={isButtonDisabled}>
+                    <span className="flex items-center">
+                      {/* Show spinner only if actively processing */}
+                      {(loadingState !== 'idle' && loadingState !== 'complete' && loadingState !== 'error') && (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      )}
+                      <span className="whitespace-nowrap">
+                        {getButtonText()}
+                      </span>
                     </span>
-                </span>
-                </Button>
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Download Request</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action will use 1 credit from your account. 
-                      Each download costs real money that you've purchased. 
+                      This action will use 1 credit from your account.
+                      Each download costs real money that you've purchased.
                       Are you sure you want to proceed with this request?
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
+                    {/* Disable buttons during the process */}
+                    <AlertDialogCancel disabled={isButtonDisabled}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
                       onClick={handleConfirmRequest}
-                      disabled={isLoading}
+                      disabled={isButtonDisabled} // Disable action button during process
                     >
-                      {isLoading ? "Processing..." : "Yes, Use My Credit"}
+                      {/* Use text based on state, might be useful if state changes quickly after click */}
+                      {isButtonDisabled ? "Processing..." : "Yes, Use My Credit"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button 
-                variant="outline" 
-                type="button" 
+              <Button
+                variant="outline"
+                type="button"
                 onClick={handleClear}
-                disabled={isLoading}
+                disabled={isButtonDisabled} // Disable clear during process
               >
                 Clear all
               </Button>
