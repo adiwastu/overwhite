@@ -55,7 +55,7 @@ export function NavUser() {
     toast.success('Logged out successfully')
     setIsLoggedIn(false)
     setUserRecord(null)
-    router.refresh()
+    router.push('/login')
   }
 
   const handleLogin = () => {
@@ -177,7 +177,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem variant="destructive" onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

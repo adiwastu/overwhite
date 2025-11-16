@@ -26,6 +26,7 @@ export default function Page() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [downloadInputValue, setDownloadInputValue] = useState("");
 
   const handleDownloadComplete = () => {
     // Immediate refresh for HistoryCard
@@ -40,6 +41,10 @@ export default function Page() {
       setSidebarRefreshTrigger(prev => prev + 1);
     }, 3000); // 3000ms = 3 seconds
   }
+
+  const handleFillDownloadInput = (url: string) => {
+    setDownloadInputValue(url);
+  };
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -78,9 +83,9 @@ export default function Page() {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="grid auto-rows-min gap-4">
-            <DownloadCard onDownloadComplete={handleDownloadComplete}/>
+            <DownloadCard onDownloadComplete={handleDownloadComplete} inputValue={downloadInputValue} onInputChange={setDownloadInputValue}/>
           </div>
-          <HistoryCard refreshTrigger={refreshTrigger} onDownloadComplete={handleDownloadComplete}/>
+          <HistoryCard refreshTrigger={refreshTrigger} onDownloadComplete={handleDownloadComplete} onFillDownloadInput={handleFillDownloadInput}/>
         </div>
         <Toaster />
       </SidebarInset>

@@ -58,9 +58,10 @@ interface DownloadItem {
 interface HistoryCardProps {
   refreshTrigger?: number;
   onDownloadComplete?: () => void;
+  onFillDownloadInput?: (url: string) => void;
 }
 
-export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryCardProps) {
+export function HistoryCard({ refreshTrigger = 0, onDownloadComplete, onFillDownloadInput  }: HistoryCardProps) {
   const [downloads, setDownloads] = useState<DownloadItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDownloading, setIsDownloading] = useState<string | null>(null)
@@ -294,6 +295,16 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
             }
             };
 
+  const handleRedownload2 = (item: DownloadItem) => {
+    if (onFillDownloadInput) {
+      onFillDownloadInput(item.original_url);
+      toast.success("URL filled in download box! Click 'Request' to download again.");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setAlertOpen(false);
+    setSelectedItem(null);
+  };
+
   const getFileIcon = (filetype: string) => {
     const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
     if (imageTypes.includes(filetype?.toLowerCase())) {
@@ -420,8 +431,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
           <AlertDialogHeader>
             <AlertDialogTitle>Download Link Expired</AlertDialogTitle>
             <AlertDialogDescription>
-              This download link has expired. To get a fresh download, we need to use 1 credit from your account. 
-              Would you like to proceed?
+              This download link has expired. We can fill the original URL in the download box above for you to request a fresh download.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -429,7 +439,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleRedownload}
+              onClick={() => handleRedownload2(selectedItem!)}
               disabled={isDownloading !== null}
             >
               {isDownloading ? (
@@ -438,7 +448,7 @@ export function HistoryCard({ refreshTrigger = 0, onDownloadComplete }: HistoryC
                   Downloading...
                 </>
               ) : (
-                'Use 1 Credit & Download'
+                'Fill URL & Close'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

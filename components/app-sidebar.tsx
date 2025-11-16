@@ -62,11 +62,11 @@ export function AppSidebar({ refreshTrigger, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent className="flex flex-col items-center">
         <NavUsage refreshTrigger={refreshTrigger}/>
-        <div className="flex items-center justify-center p-2 flex-grow flex-col justify-center">
+        {/* <div className="flex items-center justify-center p-2 flex-grow flex-col justify-center">
           <div className="w-36 h-36 flex items-center justify-center">
             <KemenfoIcon className="text-blue-500" />
           </div>
-        </div>
+        </div> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

@@ -28,17 +28,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect} from "react";
 import PocketBase from 'pocketbase';
 import { toast } from 'sonner';
 
 interface DownloadCardProps {
   onDownloadComplete?: () => void;
+  inputValue?: string;
+  onInputChange?: (value: string) => void;
 }
 
-export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
+export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: DownloadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (inputRef.current && inputValue !== undefined) {
+      inputRef.current.value = inputValue;
+    }
+  }, [inputValue]);
 
   const extractResourceId = (url: string): string | null => {
     const match = url.match(/_(\d+)\.htm/);
@@ -186,9 +194,18 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
     }
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onInputChange) {
+      onInputChange(e.target.value);
+    }
+  };
+
   const handleClear = () => {
     if (inputRef.current) {
       inputRef.current.value = "";
+      if (onInputChange) {
+        onInputChange("");
+      }
     }
   };
 
@@ -216,6 +233,7 @@ export function DownloadCard({ onDownloadComplete }: DownloadCardProps) {
                 id="links" 
                 autoComplete="off" 
                 placeholder="Paste your download links here..." 
+                onChange={handleInputChange}
               />
             </Field>
             <Field orientation="responsive" className="justify-end">

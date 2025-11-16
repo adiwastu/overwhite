@@ -18,9 +18,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"; // Import toast from sonner
 import PocketBase from 'pocketbase';
+import { useRouter } from 'next/navigation';
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,9 +40,13 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
       
       await pb.collection('users').create(data);
+
+      await pb.collection('users').authWithPassword(data.email, data.password);
       
       // Show success toast
-      toast.success('Account created successfully!');
+      toast.success('Account created successfully! Logging in...');
+
+      router.push('/');
       
       // Optional: Automatically login after signup
       // await pb.collection('users').authWithPassword(data.email, data.password);
