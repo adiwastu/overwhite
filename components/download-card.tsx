@@ -32,17 +32,16 @@ import { useRef, useState, useEffect } from "react";
 import PocketBase from 'pocketbase';
 import { toast } from 'sonner';
 
-// Define possible states for the loading process
 type LoadingState = 
-  | 'idle' // Initial state
-  | 'validating' // Checking input
-  | 'parsing' // Parsing resource ID (though very quick, could be shown)
-  | 'fetching-temp-urls' // Fetching from Freepik API
-  | 'generating-permanent-urls' // Processing and uploading to R2
-  | 'saving-records' // Saving to database
-  | 'incrementing-credits' // Updating API call count
-  | 'complete' // Process finished (will be reset quickly)
-  | 'error'; // Error occurred (will be reset quickly)
+  | 'idle'
+  | 'validating'
+  | 'parsing'
+  | 'fetching-temp-urls'
+  | 'generating-permanent-urls'
+  | 'saving-records'
+  | 'incrementing-credits'
+  | 'complete'
+  | 'error';
 
 interface DownloadCardProps {
   onDownloadComplete?: () => void;
@@ -50,17 +49,25 @@ interface DownloadCardProps {
   onInputChange?: (value: string) => void;
 }
 
+// NEW: Type to represent the platform detected from the URL
+type Platform = 'freepik' | 'flaticon' | null;
+
+// NEW: Enhanced return type that includes both the resource ID and platform
+interface ResourceInfo {
+  id: string;
+  platform: Platform;
+}
+
 export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: DownloadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
 
-  // Function to get the display text for the button based on the current state
   const getButtonText = (): string => {
     switch (loadingState) {
       case 'validating':
         return "Validating...";
       case 'parsing':
-        return "Parsing..."; // Might be too quick to show, see below
+        return "Parsing...";
       case 'fetching-temp-urls':
         return "Creating links...";
       case 'saving-records':
@@ -70,13 +77,12 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
       case 'complete':
         return "Complete!";
       case 'error':
-        return "Error!"; // This state might transition quickly, see handleConfirmRequest
-      default: // 'idle'
+        return "Error!";
+      default:
         return "Request";
     }
   };
 
-  // Determine if the button should be disabled
   const isButtonDisabled = loadingState !== 'idle';
 
   useEffect(() => {
@@ -85,9 +91,29 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
     }
   }, [inputValue]);
 
-  const extractResourceId = (url: string): string | null => {
-    const match = url.match(/_(\d+)\.htm/);
-    return match ? match[1] : null;
+  // UPDATED: This function now returns both the resource ID and the platform
+  // This is called a "Discriminated Union Pattern" - where we return an object
+  // that contains both the data and metadata about what type of data it is
+  const extractResourceId = (url: string): ResourceInfo | null => {
+    // Handle flaticon.com pattern: /free-icon/..._digits
+    const flaticonMatch = url.match(/flaticon\.com.*_(\d+)(?:\?|$)/);
+    if (flaticonMatch) {
+      return {
+        id: flaticonMatch[1],
+        platform: 'flaticon'
+      };
+    }
+    
+    // Handle freepik.com pattern: /..._digits.htm
+    const freepikMatch = url.match(/_(\d+)\.htm/);
+    if (freepikMatch) {
+      return {
+        id: freepikMatch[1],
+        platform: 'freepik'
+      };
+    }
+    
+    return null;
   };
 
   const createDownloadRecord = async (downloadData: {
@@ -114,7 +140,6 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
       return record;
     } catch (error) {
       console.error('Error creating download record:', error);
-      // Don't throw here - we don't want to break the download flow if DB save fails
     }
   };
 
@@ -139,55 +164,53 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
 
     } catch (error) {
         console.error('Error incrementing API calls:', error);
-        // Don't throw - we don't want to break the download flow
     }
   };
 
   const handleConfirmRequest = async () => {
-    // Start the process by setting the first state
     setLoadingState('validating');
 
     if (!inputRef.current?.value) {
         toast.error("Please enter a download link");
-        setLoadingState('idle'); // Reset state
+        setLoadingState('idle');
         return;
     }
 
     const link = inputRef.current.value;
-    const resourceId = extractResourceId(link);
+    // UPDATED: Now receives an object with both id and platform
+    const resourceInfo = extractResourceId(link);
 
-    if (!resourceId) {
+    if (!resourceInfo) {
         toast.error("Invalid link format. Could not extract resource ID.");
-        setLoadingState('idle'); // Reset state
+        setLoadingState('idle');
         return;
     }
 
-    // Parsing step (might be too quick, but shown here for completeness)
     setLoadingState('parsing');
-    // Parsing happens synchronously, so state might flicker. You could skip this step or add a small delay if desired.
-    // setTimeout(() => setLoadingState('fetching-temp-urls'), 100); // Example of adding a small delay if needed
-
-    // Move to fetching state
     setLoadingState('fetching-temp-urls');
-    console.log("API request initiated for resource:", resourceId);
+    
+    // UPDATED: Destructure to get both pieces of information
+    const { id: resourceId, platform } = resourceInfo;
+    console.log(`API request initiated for ${platform} resource:`, resourceId);
 
     try {
         const formats = ["eps", "png", "jpg", "svg"];
         const successfulDownloads: { format: string; url: string; filename: string }[] = [];
 
-        // Make parallel requests for all formats
+        // UPDATED: Map function now uses the platform to construct the correct API endpoint
+        // This is called "Dynamic Route Construction" - building URLs programmatically
         const requests = formats.map(async (format) => {
         try {
-            // Note: The API route itself handles fetching temp URL and generating permanent URL.
-            // So from the client's perspective, these fetches represent the overall "fetching" step.
+            // UPDATED: Use the platform variable to route to the correct API endpoint
             const response = await fetch(
-            `/api/freepik/download?resourceId=${resourceId}&format=${format}`
+            `/api/${platform}/download?resourceId=${resourceId}&format=${format}`
             );
 
             if (response.ok) {
             const data = await response.json();
             if (data.url) {
-                const filename = `freepik-${resourceId}.${format}`;
+                // UPDATED: Include platform name in filename for clarity
+                const filename = `${platform}-${resourceId}.${format}`;
                 successfulDownloads.push({
                 format,
                 url: data.url,
@@ -205,10 +228,8 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
 
         await Promise.all(requests);
 
-        // Update state after fetching is done
         setLoadingState('saving-records');
 
-        // Create database records for each successful download
         const dbPromises = successfulDownloads.map(async (download) => {
         await createDownloadRecord({
             original_url: link,
@@ -220,21 +241,16 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
 
         await Promise.all(dbPromises);
 
-        // Update state after saving records
         setLoadingState('incrementing-credits');
 
-        // 🔥 INCREMENT API CALLS USED - one per successful format
         if (successfulDownloads.length > 0) {
         await incrementApiCalls(successfulDownloads.length);
         }
 
-        // Update state after incrementing credits
-        setLoadingState('complete'); // Show "Complete!" briefly
+        setLoadingState('complete');
 
-        // Show success message
         if (successfulDownloads.length > 0) {
         toast.success(`Successfully processed ${successfulDownloads.length} file(s)`);
-        // Call the refresh callback to update HistoryCard
         if (onDownloadComplete) {
             onDownloadComplete();
         }
@@ -242,15 +258,14 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         toast.error("No files were successfully processed");
         }
 
-        // Reset the button state after a short delay to show "Complete!" or go back to "Request"
         setTimeout(() => {
             setLoadingState('idle');
-        }, 1000); // Show "Complete!" for 1 second before resetting
+        }, 1000);
 
     } catch (error) {
         console.error("Error in download process:", error);
         toast.error("Download process failed");
-        setLoadingState('idle'); // Reset state
+        setLoadingState('idle');
     }
   };
 
@@ -277,10 +292,10 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         <CardAction>
           <div className="flex w-full flex-wrap gap-2">
             <Badge variant="default">Freepik</Badge>
-            <Badge variant="outline">Envato</Badge>
+            <Badge variant="default">Flaticon</Badge>
             <Badge variant="outline">Unsplash</Badge>
             <Badge variant="outline">Flicker</Badge>
-            <Badge variant="outline">Shutterstock</Badge>
+            <Badge variant="outline">Envato</Badge>
           </div>
         </CardAction>
       </CardHeader>
@@ -294,16 +309,14 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
                 autoComplete="off"
                 placeholder="Paste your download links here..."
                 onChange={handleInputChange}
-                disabled={isButtonDisabled} // Optionally disable input during process
+                disabled={isButtonDisabled}
               />
             </Field>
             <Field orientation="responsive" className="justify-end">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  {/* Use isButtonDisabled instead of isLoading */}
                   <Button type="submit" disabled={isButtonDisabled}>
                     <span className="flex items-center">
-                      {/* Show spinner only if actively processing */}
                       {(loadingState !== 'idle' && loadingState !== 'complete' && loadingState !== 'error') && (
                         <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                       )}
@@ -323,13 +336,11 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    {/* Disable buttons during the process */}
                     <AlertDialogCancel disabled={isButtonDisabled}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleConfirmRequest}
-                      disabled={isButtonDisabled} // Disable action button during process
+                      disabled={isButtonDisabled}
                     >
-                      {/* Use text based on state, might be useful if state changes quickly after click */}
                       {isButtonDisabled ? "Processing..." : "Yes, Use My Credit"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -339,7 +350,7 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
                 variant="outline"
                 type="button"
                 onClick={handleClear}
-                disabled={isButtonDisabled} // Disable clear during process
+                disabled={isButtonDisabled}
               >
                 Clear all
               </Button>
