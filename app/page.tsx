@@ -1,7 +1,4 @@
-// app/page.tsx
-
 "use client";
-
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -21,32 +18,50 @@ import { DownloadCard } from "@/components/download-card"
 import { HistoryCard } from "@/components/history-card"
 import { Toaster } from "@/components/ui/sonner"
 import { useState, useEffect, useRef } from "react"
+import PocketBase from 'pocketbase';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [downloadInputValue, setDownloadInputValue] = useState("");
 
+  // Check authentication on mount
+  useEffect(() => {
+    const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+    
+    // Direct check of auth state
+    if (pb.authStore.isValid) {
+      setIsAuthenticated(true);
+    } else {
+      // Redirect to login if not authenticated
+      router.push('/login');
+    }
+    
+    setIsChecking(false);
+  }, [router]);
+
   const handleDownloadComplete = () => {
-    // Immediate refresh for HistoryCard
     setRefreshTrigger(prev => prev + 1);
     
-    // Delayed refresh for AppSidebar (3 seconds delay)
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     
     timeoutRef.current = setTimeout(() => {
       setSidebarRefreshTrigger(prev => prev + 1);
-    }, 3000); // 3000ms = 3 seconds
+    }, 3000);
   }
 
   const handleFillDownloadInput = (url: string) => {
     setDownloadInputValue(url);
   };
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -54,6 +69,23 @@ export default function Page() {
       }
     };
   }, []);
+
+  // Loading state while checking authentication
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -92,5 +124,3 @@ export default function Page() {
     </SidebarProvider>
   )
 }
-
-
