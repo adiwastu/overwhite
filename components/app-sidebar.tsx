@@ -27,7 +27,7 @@ const data = {
     {
       name: "Kementerian Stok Foto",
       logo: GalleryVerticalEnd,
-      plan: "Premium",
+      plan: `v${process.env.APP_VERSION || '0.0.0'}`,
     },
   ],
   navMain: [
