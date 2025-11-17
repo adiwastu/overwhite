@@ -285,7 +285,7 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
   };
 
   return (
-    <Card>
+    <Card className="sticky top-0 bg-background">
       <CardHeader>
         <CardTitle>Download</CardTitle>
         <CardDescription>Paste your links here.</CardDescription>
