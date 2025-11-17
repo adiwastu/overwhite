@@ -3,7 +3,7 @@
 import * as React from "react"
 import {
   AudioWaveform,
-  GalleryVerticalEnd,
+  Sticker,
   Command,
 } from "lucide-react"
 
@@ -25,8 +25,8 @@ import { NavUsage } from "@/components/nav-usage"
 const data = {
   teams: [
     {
-      name: "Kementerian Stok Foto",
-      logo: GalleryVerticalEnd,
+      name: "Stokbro",
+      logo: Sticker,
       plan: `v${process.env.APP_VERSION || '0.0.0'}`,
     },
   ],
@@ -34,7 +34,7 @@ const data = {
     {
       title: "Playground",
       url: "#",
-      icon: GalleryVerticalEnd,
+      icon: Sticker,
       isActive: true,
     },
     {
