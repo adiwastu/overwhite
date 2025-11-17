@@ -6,8 +6,9 @@ import {
   Bell,
   ChevronsUpDown,
   CreditCard,
+  Smile,
   LogOut,
-  Sparkles,
+  ShoppingBag,
 } from "lucide-react"
 import {
   Avatar,
@@ -139,7 +140,8 @@ export function NavUser() {
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="rounded-lg">
-                  {getInitials()}
+                  {/* {getInitials()} */}
+                  <Smile strokeWidth={1.25}/>
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -160,7 +162,8 @@ export function NavUser() {
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="rounded-lg">
-                    {getInitials()}
+                    {/* {getInitials()} */}
+                    <Smile strokeWidth={1.25} />
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -172,8 +175,7 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
+                Purchase more credits
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

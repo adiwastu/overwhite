@@ -25,7 +25,7 @@ import { NavUsage } from "@/components/nav-usage"
 const data = {
   teams: [
     {
-      name: "Stokbro",
+      name: "StokBro",
       logo: Sticker,
       plan: `v${process.env.APP_VERSION || '0.0.0'}`,
     },

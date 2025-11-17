@@ -84,9 +84,9 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle>Login to your account</CardTitle>
+          <CardTitle>Login to StokBro v{process.env.APP_VERSION}</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Enter your credentials to login.
           </CardDescription>
         </CardHeader>
         <CardContent>
