@@ -18,7 +18,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // Remove AlertDialogTrigger, we don't need it anymore
 } from "@/components/ui/alert-dialog";
 import {
   Card,
@@ -49,10 +49,8 @@ interface DownloadCardProps {
   onInputChange?: (value: string) => void;
 }
 
-// NEW: Type to represent the platform detected from the URL
 type Platform = 'freepik' | 'flaticon' | null;
 
-// NEW: Enhanced return type that includes both the resource ID and platform
 interface ResourceInfo {
   id: string;
   platform: Platform;
@@ -61,25 +59,20 @@ interface ResourceInfo {
 export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: DownloadCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
+  
+  // 1. NEW: State to control the dialog visibility
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const getButtonText = (): string => {
     switch (loadingState) {
-      case 'validating':
-        return "Validating...";
-      case 'parsing':
-        return "Parsing...";
-      case 'fetching-temp-urls':
-        return "Creating links...";
-      case 'saving-records':
-        return "Saving Records...";
-      case 'incrementing-credits':
-        return "Incrementing Credits...";
-      case 'complete':
-        return "Complete!";
-      case 'error':
-        return "Error!";
-      default:
-        return "Request";
+      case 'validating': return "Validating...";
+      case 'parsing': return "Parsing...";
+      case 'fetching-temp-urls': return "Creating links...";
+      case 'saving-records': return "Saving Records...";
+      case 'incrementing-credits': return "Incrementing Credits...";
+      case 'complete': return "Complete!";
+      case 'error': return "Error!";
+      default: return "Request";
     }
   };
 
@@ -91,105 +84,181 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
     }
   }, [inputValue]);
 
-  // UPDATED: This function now returns both the resource ID and the platform
-  // This is called a "Discriminated Union Pattern" - where we return an object
-  // that contains both the data and metadata about what type of data it is
   const extractResourceId = (url: string): ResourceInfo | null => {
-    // Handle flaticon.com pattern: /free-icon/..._digits
     const flaticonMatch = url.match(/flaticon\.com.*_(\d+)(?:\?|$)/);
-    if (flaticonMatch) {
-      return {
-        id: flaticonMatch[1],
-        platform: 'flaticon'
-      };
-    }
+    if (flaticonMatch) return { id: flaticonMatch[1], platform: 'flaticon' };
     
-    // Handle freepik.com pattern: /..._digits.htm
     const freepikMatch = url.match(/_(\d+)\.htm/);
-    if (freepikMatch) {
-      return {
-        id: freepikMatch[1],
-        platform: 'freepik'
-      };
-    }
+    if (freepikMatch) return { id: freepikMatch[1], platform: 'freepik' };
     
     return null;
   };
 
-  const createDownloadRecord = async (downloadData: {
-    original_url: string;
-    download_url: string;
-    file_type: string;
-    file_name: string;
-  }) => {
-    try {
+   const createDownloadRecord = async (downloadData: {
+
+      original_url: string;
+
+      download_url: string;
+
+      file_type: string;
+
+      file_name: string;
+
+      }) => {
+
+      try {
+
       const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+
       pb.autoCancellation(false)
 
+
       if (!pb.authStore.isValid) {
-        console.error('User not authenticated');
-        return;
+
+      console.error('User not authenticated');
+
+      return;
+
       }
 
+
       const record = await pb.collection('downloads').create({
-        user: pb.authStore.record?.id,
-        ...downloadData,
-        download_count: 0
+
+      user: pb.authStore.record?.id,
+
+      ...downloadData,
+
+      download_count: 0
+
       });
 
+
       return record;
-    } catch (error) {
+
+      } catch (error) {
+
       console.error('Error creating download record:', error);
-    }
-  };
 
-  const incrementApiCalls = async (incrementBy: number) => {
-    try {
-        const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
-        pb.autoCancellation(false)
+      }
 
-        if (!pb.authStore.isValid || !pb.authStore.record) {
-        console.error('User not authenticated');
-        return;
-        }
+      };
 
-        const currentUser = await pb.collection('users').getOne(pb.authStore.record.id);
-        const currentCalls = currentUser.api_calls_used || 0;
 
-        await pb.collection('users').update(pb.authStore.record.id, {
-        api_calls_used: currentCalls + incrementBy
-        });
+      const incrementApiCalls = async (incrementBy: number) => {
 
-        console.log(`Incremented API calls by ${incrementBy}. New total: ${currentCalls + incrementBy}`);
+      try {
 
-    } catch (error) {
-        console.error('Error incrementing API calls:', error);
-    }
-  };
+      const pb = new
 
-  const handleConfirmRequest = async () => {
-    setLoadingState('validating');
+      PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
 
+      pb.autoCancellation(false)
+
+
+      if (!pb.authStore.isValid || !pb.authStore.record) {
+
+      console.error('User not authenticated');
+
+      return;
+
+      }
+
+
+      const currentUser = await
+
+      pb.collection('users').getOne(pb.authStore.record.id);
+
+      const currentCalls = currentUser.api_calls_used || 0;
+
+
+      await pb.collection('users').update(pb.authStore.record.id, {
+
+      api_calls_used: currentCalls + incrementBy
+
+      });
+
+
+      console.log(`Incremented API calls by ${incrementBy}. New total:
+
+      ${currentCalls + incrementBy}`);
+
+
+      } catch (error) {
+
+      console.error('Error incrementing API calls:', error);
+
+      }
+
+      }; 
+
+  // 2. NEW: This runs immediately when "Request" is clicked
+  const handlePreValidation = () => {
     if (!inputRef.current?.value) {
-        toast.error("Please enter a download link");
-        setLoadingState('idle');
+        toast.error("Please enter a link first.");
         return;
     }
 
     const link = inputRef.current.value;
-    // UPDATED: Now receives an object with both id and platform
     const resourceInfo = extractResourceId(link);
 
     if (!resourceInfo) {
         toast.error("Invalid link format. Could not extract resource ID.");
+        return;
+    }
+
+    // If validation passes, ONLY THEN do we open the modal
+    setIsConfirmOpen(true);
+  }
+
+  // 3. UPDATED: This now runs only after clicking "Yes" in the modal
+  // We removed the validation checks from here because they are done in handlePreValidation
+  const handleConfirmRequest = async () => {
+    // Close the modal immediately so we can show the loading state on the button
+    setIsConfirmOpen(false); 
+    setLoadingState('validating');
+
+    // Double check existence just to be safe for TS, though handlePreValidation catches this
+    if (!inputRef.current?.value) return;
+
+    const link = inputRef.current.value;
+    const resourceInfo = extractResourceId(link);
+
+    if (!resourceInfo) {
         setLoadingState('idle');
         return;
+    }
+
+    try {
+      const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+      
+      if (!pb.authStore.isValid || !pb.authStore.record) {
+         toast.error("You must be logged in.");
+         setLoadingState('idle');
+         return;
+      }
+
+      // Fetch fresh user data to get the absolute latest numbers
+      const currentUser = await pb.collection('users').getOne(pb.authStore.record.id);
+      
+      const used = currentUser.api_calls_used || 0;
+      const limit = currentUser.api_credit_limit || 0;
+      
+      if (used + 5 > limit) { 
+        toast.error(`Insufficient credits. You have used ${used} of ${limit}.`);
+        setLoadingState('idle');
+        return;
+      }
+      
+    } catch (error) {
+      console.error("Error checking credits:", error);
+      toast.error("Could not verify account balance. Please try again.");
+      setLoadingState('idle');
+      return;
     }
 
     setLoadingState('parsing');
     setLoadingState('fetching-temp-urls');
     
-    // UPDATED: Destructure to get both pieces of information
     const { id: resourceId, platform } = resourceInfo;
     console.log(`API request initiated for ${platform} resource:`, resourceId);
 
@@ -197,11 +266,8 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         const formats = ["eps", "png", "jpg", "svg"];
         const successfulDownloads: { format: string; url: string; filename: string }[] = [];
 
-        // UPDATED: Map function now uses the platform to construct the correct API endpoint
-        // This is called "Dynamic Route Construction" - building URLs programmatically
         const requests = formats.map(async (format) => {
         try {
-            // UPDATED: Use the platform variable to route to the correct API endpoint
             const response = await fetch(
             `/api/${platform}/download?resourceId=${resourceId}&format=${format}`
             );
@@ -209,17 +275,13 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
             if (response.ok) {
             const data = await response.json();
             if (data.url) {
-                // UPDATED: Include platform name in filename for clarity
                 const filename = `${platform}-${resourceId}.${format}`;
                 successfulDownloads.push({
                 format,
                 url: data.url,
                 filename
                 });
-                console.log(`✅ ${format.toUpperCase()}: ${data.url}`);
             }
-            } else {
-            console.log(`❌ ${format.toUpperCase()}: ${response.status} - ${response.statusText}`);
             }
         } catch (error) {
             console.error(`Error fetching ${format}:`, error);
@@ -248,6 +310,8 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
         }
 
         setLoadingState('complete');
+        
+        handleClear();
 
         if (successfulDownloads.length > 0) {
         toast.success(`Successfully processed ${successfulDownloads.length} file(s)`);
@@ -270,22 +334,18 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (onInputChange) {
-      onInputChange(e.target.value);
-    }
+    if (onInputChange) onInputChange(e.target.value);
   };
 
   const handleClear = () => {
     if (inputRef.current) {
       inputRef.current.value = "";
-      if (onInputChange) {
-        onInputChange("");
-      }
+      if (onInputChange) onInputChange("");
     }
   };
 
   return (
-    <Card className="sticky top-0 bg-background">
+    <Card>
       <CardHeader>
         <CardTitle>Download</CardTitle>
         <CardDescription>Paste your links here.</CardDescription>
@@ -313,19 +373,25 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
               />
             </Field>
             <Field orientation="responsive" className="justify-end">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button type="submit" disabled={isButtonDisabled}>
-                    <span className="flex items-center">
-                      {(loadingState !== 'idle' && loadingState !== 'complete' && loadingState !== 'error') && (
-                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      )}
-                      <span className="whitespace-nowrap">
-                        {getButtonText()}
-                      </span>
-                    </span>
-                  </Button>
-                </AlertDialogTrigger>
+              
+              {/* 4. UPDATED: Button is separated from the Dialog */}
+              <Button 
+                type="submit" 
+                onClick={handlePreValidation} // Runs validation first
+                disabled={isButtonDisabled}
+              >
+                <span className="flex items-center">
+                  {(loadingState !== 'idle' && loadingState !== 'complete' && loadingState !== 'error') && (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  )}
+                  <span className="whitespace-nowrap">
+                    {getButtonText()}
+                  </span>
+                </span>
+              </Button>
+
+              {/* 5. UPDATED: Controlled AlertDialog */}
+              <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Download Request</AlertDialogTitle>
@@ -338,7 +404,10 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={isButtonDisabled}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={handleConfirmRequest}
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent auto-closing to handle logic if needed
+                        handleConfirmRequest();
+                      }}
                       disabled={isButtonDisabled}
                     >
                       {isButtonDisabled ? "Processing..." : "Yes, Use My Credit"}
@@ -346,6 +415,7 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
               <Button
                 variant="outline"
                 type="button"
