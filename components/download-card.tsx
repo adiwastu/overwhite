@@ -84,64 +84,47 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
     }
   }, [inputValue]);
 
-  const extractResourceId = (url: string): ResourceInfo | null => {
-    const flaticonMatch = url.match(/flaticon\.com.*_(\d+)(?:\?|$)/);
-    if (flaticonMatch) return { id: flaticonMatch[1], platform: 'flaticon' };
-    
-    const freepikMatch = url.match(/_(\d+)\.htm/);
-    if (freepikMatch) return { id: freepikMatch[1], platform: 'freepik' };
-    
-    return null;
-  };
+    const extractResourceId = (url: string): ResourceInfo | null => {
+      // 1. Flaticon Check (Unchanged, but added '#' support just in case)
+      const flaticonMatch = url.match(/flaticon\.com.*_(\d+)(?:\?|#|$)/);
+      if (flaticonMatch) return { id: flaticonMatch[1], platform: 'flaticon' };
 
-   const createDownloadRecord = async (downloadData: {
+      // 2. Freepik Check (Updated)
+      // We now look for 'freepik.com' to be safe, then the ID, 
+      // followed by .htm OR # OR ? OR end-of-line
+      const freepikMatch = url.match(/freepik\.com.*_(\d+)(?:\.htm|\?|#|$)/);
+      
+      if (freepikMatch) return { id: freepikMatch[1], platform: 'freepik' };
 
-      original_url: string;
+      return null;
+    };
 
-      download_url: string;
+    // ... inside DownloadCard component
 
-      file_type: string;
-
-      file_name: string;
-
+    const createDownloadRecord = async (downloadData: {
+        original_url: string;
+        download_url: string;
+        file_type: string;
+        file_name: string;
+        file_size: string; // <--- NEW FIELD
       }) => {
+        try {
+          const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+          pb.autoCancellation(false);
 
-      try {
+          if (!pb.authStore.isValid) return;
 
-      const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+          const record = await pb.collection('downloads').create({
+            user: pb.authStore.record?.id,
+            ...downloadData,
+            download_count: 0
+          });
 
-      pb.autoCancellation(false)
-
-
-      if (!pb.authStore.isValid) {
-
-      console.error('User not authenticated');
-
-      return;
-
-      }
-
-
-      const record = await pb.collection('downloads').create({
-
-      user: pb.authStore.record?.id,
-
-      ...downloadData,
-
-      download_count: 0
-
-      });
-
-
-      return record;
-
-      } catch (error) {
-
-      console.error('Error creating download record:', error);
-
-      }
-
-      };
+          return record;
+        } catch (error) {
+          console.error('Error creating download record:', error);
+        }
+    };
 
 
       const incrementApiCalls = async (incrementBy: number) => {
@@ -263,8 +246,13 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
     console.log(`API request initiated for ${platform} resource:`, resourceId);
 
     try {
-        const formats = ["eps", "png", "jpg", "svg"];
-        const successfulDownloads: { format: string; url: string; filename: string }[] = [];
+        const formats = ["eps", "png", "jpg", "svg", "gif"];
+        const successfulDownloads: { 
+          format: string; 
+          url: string; 
+          filename: string; 
+          fileSizeMB: string; // <--- Add this
+        }[] = [];
 
         const requests = formats.map(async (format) => {
         try {
@@ -276,10 +264,25 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
             const data = await response.json();
             if (data.url) {
                 const filename = `${platform}-${resourceId}.${format}`;
+                let fileSizeMB = "0.00";
+                try {
+                  // Perform a HEAD request to get metadata without downloading the body
+                  const headRes = await fetch(data.url, { method: 'HEAD' });
+                  const contentLength = headRes.headers.get('Content-Length');
+                  
+                  if (contentLength) {
+                    const bytes = parseInt(contentLength, 10);
+                    // Convert to MB and fix to 2 decimals
+                    fileSizeMB = (bytes / (1024 * 1024)).toFixed(2);
+                  }
+                } catch (err) {
+                  console.warn(`Could not determine size for ${filename}`, err);
+        }
                 successfulDownloads.push({
                 format,
                 url: data.url,
-                filename
+                filename,
+                fileSizeMB
                 });
             }
             }
@@ -297,7 +300,8 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
             original_url: link,
             download_url: download.url,
             file_type: download.format,
-            file_name: download.filename
+            file_name: download.filename,
+            file_size: download.fileSizeMB
         });
         });
 
@@ -353,9 +357,10 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
           <div className="flex w-full flex-wrap gap-2">
             <Badge variant="default">Freepik</Badge>
             <Badge variant="default">Flaticon</Badge>
-            <Badge variant="outline">Unsplash</Badge>
+             <Badge variant="outline">+</Badge>
+            {/* <Badge variant="outline">Unsplash</Badge>
             <Badge variant="outline">Flicker</Badge>
-            <Badge variant="outline">Envato</Badge>
+            <Badge variant="outline">Envato</Badge> */}
           </div>
         </CardAction>
       </CardHeader>

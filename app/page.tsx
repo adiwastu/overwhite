@@ -119,7 +119,7 @@ export default function Page() {
           </div>
           <HistoryCard refreshTrigger={refreshTrigger} onDownloadComplete={handleDownloadComplete} onFillDownloadInput={handleFillDownloadInput}/>
         </div>
-        <Toaster position="top-center" richColors={true}/>
+        <Toaster position="bottom-center"/>
       </SidebarInset>
     </SidebarProvider>
   )
