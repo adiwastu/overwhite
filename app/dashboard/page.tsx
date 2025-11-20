@@ -1,3 +1,4 @@
+"use client";
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -13,11 +14,82 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { DownloadCard } from "@/components/download-card"
+import { HistoryCard } from "@/components/history-card"
+import { Toaster } from "@/components/ui/sonner"
+import { useState, useEffect, useRef } from "react"
+import PocketBase from 'pocketbase';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [downloadInputValue, setDownloadInputValue] = useState("");
+
+  // Check authentication on mount
+  useEffect(() => {
+    const pb = new PocketBase(process.env.NEXT_PUBLIC_POCKETBASE_URL);
+    
+    // Direct check of auth state
+    if (pb.authStore.isValid) {
+      setIsAuthenticated(true);
+    } else {
+      // Redirect to login if not authenticated
+      router.push('/login');
+    }
+    
+    setIsChecking(false);
+  }, [router]);
+
+  const handleDownloadComplete = () => {
+    setRefreshTrigger(prev => prev + 1);
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      setSidebarRefreshTrigger(prev => prev + 1);
+    }, 3000);
+  }
+
+  const handleFillDownloadInput = (url: string) => {
+    setDownloadInputValue(url);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Loading state while checking authentication
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
+    <SidebarProvider defaultOpen={true}>
+      <AppSidebar refreshTrigger={sidebarRefreshTrigger} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
@@ -30,25 +102,24 @@ export default function Page() {
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink href="#">
-                    Building Your Application
+                    StokBro
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                  <BreadcrumbPage>Dashboard</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-            <div className="bg-muted/50 aspect-video rounded-xl" />
-            <div className="bg-muted/50 aspect-video rounded-xl" />
-            <div className="bg-muted/50 aspect-video rounded-xl" />
+          <div className="grid auto-rows-min gap-4">
+            <DownloadCard onDownloadComplete={handleDownloadComplete} inputValue={downloadInputValue} onInputChange={setDownloadInputValue}/>
           </div>
-          <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
+          <HistoryCard refreshTrigger={refreshTrigger} onDownloadComplete={handleDownloadComplete} onFillDownloadInput={handleFillDownloadInput}/>
         </div>
+        <Toaster position="bottom-center"/>
       </SidebarInset>
     </SidebarProvider>
   )

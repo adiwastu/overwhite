@@ -177,7 +177,7 @@ export function DownloadCard({ onDownloadComplete, inputValue, onInputChange }: 
   // 2. NEW: This runs immediately when "Request" is clicked
   const handlePreValidation = () => {
     if (!inputRef.current?.value) {
-        toast.error("Please enter a link first.");
+        toast.warning("Please enter a link first.");
         return;
     }
 
