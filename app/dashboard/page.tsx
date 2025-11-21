@@ -20,6 +20,8 @@ import { Toaster } from "@/components/ui/sonner"
 import { useState, useEffect, useRef } from "react"
 import PocketBase from 'pocketbase';
 import { useRouter } from 'next/navigation';
+import { StickerIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function Page() {
   const router = useRouter();
@@ -71,16 +73,20 @@ export default function Page() {
   }, []);
 
   // Loading state while checking authentication
+  
+
+
   if (isChecking) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+        <div className="flex flex-col items-center gap-3">
+          <StickerIcon strokeWidth={1.25} className="h-10 w-10 text-gray-700" />
+          <p className="text-gray-600">Authenticating...</p>
         </div>
       </div>
     );
   }
+
 
   // Don't render anything if not authenticated (will redirect)
   if (!isAuthenticated) {
