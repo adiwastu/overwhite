@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for stokbro-fe on 2025-11-26T05:43:13Z
+# fly.toml app configuration file generated for stokbro on 2025-11-27T03:09:13Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'stokbro-fe'
+app = 'stokbro'
 primary_region = 'sin'
 
 [build]
